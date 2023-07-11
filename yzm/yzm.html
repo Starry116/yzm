@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>作品展示</title>
+<link rel="stylesheet" href="css/yzm.css">
+<style type="text/css">
+    body {
+        width: 980px;
+        margin: 0 auto;
+        padding: 0;
+        font-size: 5px;
+    }
+</style>
+
+<body>
+    <div id="top">
+        <h2>基于轨迹引导的验证码生成工具</h2>
+    </div>
+    <div style="margin:0px auto;width: 980px;border:1px solid black;font-size: 15px;"> <span
+            class="wen"><strong>&nbsp&nbsp 验证码</strong></span>
+        <input id="yzm_input" type="text" disabled="disabled" />
+        <input class="jz" type="button" value="加载验证码" onclick="show_yzm_dynamic()" />
+        <input class="yc" type="button" value="隐藏验证码" onclick="hide_yzm()" />
+        <input class="yz" type="button" value="验证合法性"
+            onclick="if (verify_yzm()) { alert(' 验证通过!'); } else { alert('验证不通过!') }" />
+        <hr class="h1" />
+        <div id="view_yzm_div">
+        </div>
+    </div>
+    <br /><br />
+    <script type="text/javascript">
+        //-------------------------------以下是验证码图形的产生逻辑
+        var GG_ch = new Array(5);
+        var GG_xx = new Array(5);
+        var GG_yy = new Array(5);
+        var GGj_ch = new Array(5);
+        var GGj_xx = new Array(5);
+        var GGj_yy = new Array(5);
+        var GGr_ch = new Array(5);
+        var GGr_xx = new Array(5);
+        var GGr_yy = new Array(5);
+        //产生验证码图案
+        function create_yzm(dis_ch_count) {
+            //dis_ch_count 表示干扰字符个数
+            var o_canv = document.getElementById("canv_yzm");
+            var o_cxt = o_canv.getContext("2d");
+            o_cxt.clearRect(0, 0, o_canv.width, o_canv.width); //清除上可能已绘制的图案
+            //每一列随机选择一方格输出一串字符
+            var yzm = "";
+            var yzm_ch_array = new Array();
+            var row_array = new Array();
+            var col_array = new Array();
+            for (col = 0; col < 5; col++) {
+                o_cxt.font = "20px Arial";
+                var row = c_random(5);
+                row_array[col] = row; //存储有效行号
+                //在当前方格内输出含 dis_ch_count 个字符的串
+                var ram_x = col * 80;
+                var ram_y = row * 80 + 36;
+                o_cxt.fillText(get_str(7), ram_x, ram_y);
+                o_cxt.font = "27px Arial";
+                var yzm_ch = get_nch();
+                while (inarray(yzm_ch, yzm_ch_array)) {
+                    yzm_ch = get_nch();
+                } //避免出现重复字符
+                o_cxt.fillText(yzm_ch, col * 80 + 40, row * 80 + 40);
+                GG_ch[col] = yzm_ch;
+                GG_xx[col] = col * 80 + 40;
+                GG_yy[col] = row * 80 + 40;
+                yzm_ch_array[col] = yzm_ch; //字符与列建立对应关系
+            }
+            //附近干扰
+            for (var jj = 0; jj < 5; jj++) {
+                o_cxt.font = "27px Arial";
+                var yzm_ch = get_nch();
+                var tag = c_random(2);
+                if (tag == 0) {
+                    o_cxt.fillText(yzm_ch, GG_xx[jj] - 30, GG_yy[jj] + 10);
+                    GGj_ch[jj] = yzm_ch;
+                    GGj_xx[jj] = GG_xx[jj] - 30;
+                    GGj_yy[jj] = GG_yy[jj] + 10;
+                } else {
+                    o_cxt.fillText(yzm_ch, GG_xx[jj] + 5, GG_yy[jj] + 30);
+                    GGj_ch[jj] = yzm_ch;
+                    GGj_xx[jj] = GG_xx[jj] + 5;
+                    GGj_yy[jj] = GG_yy[jj] + 30;
+                }
+            }
+            //循环绘制曲线
+            var col_str = "01234"; //列号构成一字符串
+            var ram_col = c_random(5); //随机产生列号
+            var ram_col_str = ram_col.toString(); //随机列号转字符串
+            col_str = col_str.replace(ram_col_str, ""); //字符串中去掉已产生的列号
+            yzm = yzm + yzm_ch_array[ram_col]; //找到第 1 个验证码字符
+            var cur_row = row_array[ram_col]; //求随机列对应的行
+            var b_x = ram_col * 80 + 40; //起始横坐标
+            var b_y = cur_row * 80 + 40; //起始纵坐标
+            //先循环连接 4 块区域
+            for (var ww = 0; ww < 3; ww++) {
+                var ram_pos = c_random(col_str.length - 1); //产生随机位置号
+                var ram_pos_col = parseInt(col_str.substr(ram_pos, 1)); //求随机对应的列号
+                col_str = col_str.replace(col_str.substr(ram_pos, 1), ""); //字符串中去掉已产
+                生的列号
+                yzm = yzm + yzm_ch_array[ram_pos_col]; //验证码字符累加
+                var e_x = ram_pos_col * 80 + 40; //终点横坐标
+                var e_y = row_array[ram_pos_col] * 80 + 40; //终点纵坐标
+                //再绘制曲线
+                o_cxt.beginPath();
+                o_cxt.moveTo(b_x, b_y);
+                var m_x = c_random(300) + 10; //随机产生中间点横坐标
+                var m_y = c_random(300) + 10; //随机产生中间点纵坐标
+                o_cxt.bezierCurveTo(b_x, b_y, m_x, m_y, e_x, e_y);
+                o_cxt.stroke(); //完成当前画线
+                b_x = e_x;
+                b_y = e_y; //终点赋值给起点
+            }
+            //再连接最后一块区域
+            o_cxt.beginPath();
+            o_cxt.moveTo(b_x, b_y);
+            var m_x = c_random(300) + 10; //随机产生中间点横坐标
+            var m_y = c_random(300) + 10; //随机产生中间点纵坐标
+            var last_col = parseInt(col_str); //求最后 1 个列号
+            var last_row = row_array[last_col]; //求最后 1 个行号
+            var e_x = last_col * 80 + 40; //终点横坐标
+            var e_y = row_array[last_col] * 80 + 40; //终点纵坐标
+            o_cxt.bezierCurveTo(b_x, b_y, m_x, m_y, e_x, e_y);
+            o_cxt.stroke(); //完成最后画线
+            yzm = yzm + yzm_ch_array[last_col]; //验证码字符累加
+            //生成一个干扰圆
+            o_cxt.beginPath();
+            var circle_x = 190 + c_random(50);
+            var circle_y = 190 + c_random(50);
+            var circle_r = 100 + c_random(50);
+            o_cxt.arc(circle_x, circle_y, circle_r, 0, 2 * Math.PI, true);
+            o_cxt.stroke();
+            //随机干扰字符
+            for (var k = 0; k < 5; k++) {
+                o_cxt.font = "27px Arial";
+                var yzm_dis_ch = get_nch();
+                var xx = c_random(400);
+                var yy = c_random(400);
+                GGr_ch[k] = yzm_dis_ch;
+                GGr_xx[k] = xx;
+                GGr_yy[k] = yy;
+                o_cxt.fillText(yzm_dis_ch, xx, yy);
+            }
+            return yzm;
+        }
+        //随机产生整数，范围[0,max_num)
+        function c_random(max_num) {
+            var num = Math.floor(Math.random() * max_num);
+            return num;
+        }
+        //随机获取一个字母
+        function get_ch() {
+            var alpha = "abcdefghijkmnopqrstuvwxyz";
+            var start = c_random(24);
+            return alpha.substr(start, 1);
+        }
+        //随机获取一符号
+        function get_nch() {
+            var alpha = "23456789@#$&ABDEFGHJMNQRTY";
+            var start = c_random(20);
+            return alpha.substr(start, 1);
+        }
+        //随机产生字符串
+        function get_str(count) {
+            //count 表示字符串中字符个数
+            var alpha_str = "";
+            for (var k = 0; k < count; k++) {
+                alpha_str = alpha_str + get_ch();
+            }
+            return alpha_str;
+        }
+        //判断一个元素是否在数组中
+        function inarray(e, arr) {
+            var re = false;
+            for (t = 0; t < arr.length; t++) {
+                if (arr[t] == e) {
+                    re = true;
+                    break;
+                }
+            }
+            return re;
+        }
+        //------------------以下是验证码的具体应用
+        var dny_str = '<canvas id="canv_yzm" width="400" height="400" style = "background-color:silver" > </canvas>';
+        dny_str = dny_str + '<div style = "width:400px;background-color:black;color:white;font-size:20px;" > 验证码规则： <br/>从非封闭曲线轨迹的一个端点到另一个端点， 依次点击离端点或顶点最近的５个粗体字符。</div>'
+        var move_button = '<div><input id="stop_button" type="button" value=" 停 止 " onclick="stop_time_click()" style="position:absolute;background-color:blue;color:white" /></div>';
+        dny_str = move_button + dny_str;
+        dny_str = '<div style="width:400px;margin:0 auto">' + dny_str + '</div >';
+        //查看验证码
+        function view_yzm(view_yzm_div_id) {
+            //view_yzm_div_id 表示网页上存放验证码图像的 div 的 ID
+            //ch_count 表示验证码字符个数
+            document.getElementById("yzm_input").value = "";
+            document.getElementById(view_yzm_div_id).innerHTML = dny_str;
+            return create_yzm(4); //核心核心表达式
+        }
+        var gza5203_cha61506_qy951702_4356_4447_4393;
+        //显示验证码图
+        function show_yzm() {
+            var ch_count = c_random(10); //ch_count 表示验证码字符个数
+            if (ch_count < 5) {
+                ch_count = 4;
+            } else {
+                ch_count = 5;
+            }
+            gza5203_cha61506_qy951702_4356_4447_4393 = view_yzm('view_yzm_div');
+        }
+        //以下隐藏验证码
+        function hide_yzm() {
+            document.getElementById("view_yzm_div").innerHTML = "";
+            clearTimeout(time_click);
+        }
+        //以下验证验证码合法性
+        function verify_yzm() {
+            clearTimeout(time_click);
+            var ui_yzm = document.getElementById("yzm_input").value;
+            var ui_yzm_re = ui_yzm.split('').reverse().join('');
+            var yz_result = false;
+            if (ui_yzm == gza5203_cha61506_qy951702_4356_4447_4393 || ui_yzm_re ==
+                gza5203_cha61506_qy951702_4356_4447_4393) {
+                yz_result = true;
+            }
+            document.getElementById("yzm_input").value = "";
+            document.getElementById("view_yzm_div").innerHTML = "";
+            return yz_result;
+        }
+        //动态显示验证码
+        var time_click;
+
+        function show_yzm_dynamic() {
+            clearTimeout(time_click); //将可能已存在的触发器清除
+            show_yzm();
+            document.getElementById("stop_button").style.left = document.getElementById("canv_yzm").offsetLeft +
+                c_random(300) + "px";
+            document.getElementById("stop_button").style.top = document.getElementById("canv_yzm").offsetTop + c_random(
+                300) + "px";
+            time_click = setTimeout("show_yzm_dynamic()", 1000);
+            //绑定事件
+            document.getElementById("yzm_input").value = "";
+            var canv_obj = document.getElementById("canv_yzm");
+            canv_obj.addEventListener("click", function (e) {
+                // alert(e.clientX); alert(canv_obj.offsetLeft);
+                for (var kk = 0; kk < 5; kk++) {
+                    var pos_x = canv_obj.offsetLeft + GG_xx[kk];
+                    var pos_y = canv_obj.offsetTop + GG_yy[kk];
+                    if ((e.clientX - pos_x > 0 && e.clientX - pos_x < 20) && (pos_y - e.clientY > 0 && pos_y - e
+                            .clientY < 20)) {
+                        document.getElementById("yzm_input").value = document.getElementById("yzm_input")
+                            .value + GG_ch[kk];
+                    }
+                }
+                for (var kk = 0; kk < 5; kk++) {
+                    var pos_x = canv_obj.offsetLeft + GGj_xx[kk];
+                    var pos_y = canv_obj.offsetTop + GGj_yy[kk];
+                    if ((e.clientX - pos_x > 0 && e.clientX - pos_x < 20) && (pos_y - e.clientY > 0 && pos_y - e
+                            .clientY < 20)) {
+                        document.getElementById("yzm_input").value = document.getElementById("yzm_input")
+                            .value + GGj_ch[kk];
+                    }
+                }
+                for (var kk = 0; kk < 5; kk++) {
+                    var pos_x = canv_obj.offsetLeft + GGr_xx[kk];
+                    var pos_y = canv_obj.offsetTop + GGr_yy[kk];
+                    if ((e.clientX - pos_x > 0 && e.clientX - pos_x < 20) && (pos_y - e.clientY > 0 && pos_y - e
+                            .clientY < 20)) {
+                        document.getElementById("yzm_input").value = document.getElementById("yzm_input")
+                            .value + GGr_ch[kk];
+                    }
+                }
+            });
+        }
+        //停止动态显示
+        function stop_time_click() {
+            clearTimeout(time_click);
+        }
+    </script>
+</body>
+
+</html>
